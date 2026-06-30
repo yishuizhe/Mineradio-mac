@@ -1,5 +1,5 @@
 {
-  "name": "mineradio",
+  "name": "mineradio-mac",
   "productName": "Mineradio",
   "version": "1.1.1",
   "description": "沉浸式音乐播放器，融合天气电台、歌词舞台、粒子视觉和 3D 歌单架。",
@@ -8,6 +8,9 @@
   "private": true,
   "scripts": {
     "start": "electron .",
+    "icon:mac": "node build/create-mac-icon.js",
+    "build:mac": "npm run icon:mac && electron-builder --mac dmg zip",
+    "build:mac:dir": "npm run icon:mac && electron-builder --mac dir",
     "build:win": "electron-builder --win nsis",
     "build:win:dir": "electron-builder --win dir"
   },
@@ -46,6 +49,32 @@
         }
       ]
     },
+    "mac": {
+      "category": "public.app-category.music",
+      "icon": "build/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "artifactName": "Mineradio-${version}-mac-${arch}.${ext}",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "artifactName": "Mineradio-${version}-mac-${arch}.${ext}"
+    },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
@@ -64,16 +93,16 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "XxHuberrr",
-        "repo": "Mineradio"
+        "owner": "yishuizhe",
+        "repo": "Mineradio-mac"
       }
     ]
   },
   "mineradio": {
     "update": {
       "provider": "github",
-      "owner": "XxHuberrr",
-      "repo": "Mineradio",
+      "owner": "yishuizhe",
+      "repo": "Mineradio-mac",
       "preview": true,
       "preferMirrors": true,
       "mirrors": [
