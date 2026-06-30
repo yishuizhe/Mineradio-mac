@@ -49,10 +49,20 @@ body.desktop-shell #desktop-titlebar::after{content:none}
 .desktop-window-btn svg{width:14px;height:14px;stroke:currentColor;stroke-width:2;fill:none}
 .desktop-window-btn:hover{background:rgba(244,210,138,.14);color:#fff1bd;transform:translateY(-1px)}
 .desktop-window-btn.close:hover{background:rgba(255,86,100,.86);color:#fff}
-body.desktop-shell.desktop-macos .desktop-window-controls{display:none}
+body.desktop-shell.desktop-macos .desktop-window-controls{display:flex}
+body.desktop-shell.desktop-macos .desktop-window-btn{display:none}
 body.desktop-shell.desktop-macos #search-area.peek{top:42px}
-body.desktop-shell.desktop-macos #top-right{top:66px}
+body.desktop-shell.desktop-macos #top-right{top:70px;right:34px;gap:8px}
+body.desktop-shell.desktop-macos #top-right .icon-btn,
+body.desktop-shell.desktop-macos #home-btn{width:38px;min-width:38px;height:38px;border-radius:20px}
+body.desktop-shell.desktop-macos #top-right .icon-btn svg,
+body.desktop-shell.desktop-macos #home-btn svg{width:17px;height:17px}
+body.desktop-shell.desktop-macos #user-btn.logged-out{height:38px;min-width:54px;padding:0 14px;border-radius:20px;font-size:12px;letter-spacing:.04em}
 body.desktop-shell.desktop-macos #toast{top:68px}
+body.desktop-shell.desktop-macos.empty-home-active.controls-visible #empty-home{bottom:178px!important}
+body.desktop-shell.desktop-macos #bottom-bar{width:min(980px,calc(100vw - 92px))!important;bottom:18px!important;padding:8px 20px 12px!important}
+body.desktop-shell.desktop-macos #bottom-bar.stage-mode{width:calc(100vw - 92px)!important;bottom:18px!important}
+body.desktop-shell.desktop-macos.empty-home-active #bottom-bar.visible{opacity:.82}
 .desktop-mode-btn{height:30px;min-width:78px;padding:0 12px;border:1px solid rgba(255,255,255,.08);border-radius:999px;background:rgba(4,8,10,.42);color:rgba(224,250,255,.70);font-family:inherit;font-size:11px;font-weight:760;letter-spacing:.08em;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;transition:background .18s,color .18s,transform .18s,border-color .18s,box-shadow .18s}
 .desktop-mode-btn::before{content:'';width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.28);box-shadow:0 0 0 rgba(255,83,103,0);transition:background .18s,box-shadow .18s}
 .desktop-mode-btn:hover{background:rgba(255,83,103,.10);border-color:rgba(255,83,103,.34);color:#fff;transform:translateY(-1px)}
@@ -345,6 +355,10 @@ body.empty-home-active.controls-visible #empty-home{bottom:128px}
 .icon-btn.active{color:var(--champagne);border-color:rgba(244,210,138,0.44);background:rgba(244,210,138,0.10)}
 #upload-btn{border-color:rgba(0,245,212,.24);background:rgba(255,255,255,.045);color:rgba(232,236,239,.78);box-shadow:0 10px 32px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.08)}
 #upload-btn:hover{border-color:rgba(0,245,212,.50);background:rgba(0,245,212,.075);color:#fff;box-shadow:0 16px 46px rgba(0,245,212,.08),inset 0 1px 0 rgba(255,255,255,.10)}
+.local-music-btn{height:44px;min-width:98px;padding:0 14px;border-radius:999px;border:1px solid rgba(0,245,212,.24);background:rgba(255,255,255,.045);color:rgba(232,236,239,.82);box-shadow:0 10px 32px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.08);font-family:inherit;font-size:12px;font-weight:720;letter-spacing:.04em;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;transition:all .24s}
+.local-music-btn svg{width:17px;height:17px;stroke:currentColor}
+.local-music-btn:hover{border-color:rgba(0,245,212,.52);background:rgba(0,245,212,.085);color:#fff;box-shadow:0 16px 46px rgba(0,245,212,.10),inset 0 1px 0 rgba(255,255,255,.12);transform:translateY(-1px)}
+body.desktop-shell.desktop-macos .local-music-btn{height:38px;min-width:88px;padding:0 12px;font-size:11.5px}
 #visual-guide-btn{font-size:18px;font-weight:780;line-height:1;color:rgba(255,255,255,.68);border-color:rgba(255,255,255,.10);background:rgba(255,255,255,.04)}
 #visual-guide-btn:hover{color:#fff;border-color:rgba(255,83,103,.40);background:rgba(255,83,103,.10);box-shadow:0 14px 38px rgba(255,83,103,.08)}
 #upload-actions{position:relative;display:flex;align-items:center;gap:8px;height:58px}
@@ -847,6 +861,20 @@ body.login-guide-active #login-guide-canvas{opacity:1}
 .modal-btn:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.3)}
 .modal-btn.primary{background:rgba(244,210,138,0.14);border-color:rgba(244,210,138,0.50);color:var(--champagne)}
 .modal-btn.primary:hover{background:rgba(244,210,138,0.24)}
+body.desktop-shell.desktop-macos .modal-mask{align-items:flex-start;padding:76px 22px 22px;overflow:hidden}
+body.desktop-shell.desktop-macos .modal{max-height:calc(100vh - 112px);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+body.desktop-shell.desktop-macos .dual-login-modal{width:min(430px,88vw);max-width:min(430px,88vw);padding:22px 24px 24px}
+body.desktop-shell.desktop-macos .login-platform-tabs{margin-bottom:14px}
+body.desktop-shell.desktop-macos .login-intro{margin:-2px 0 14px;padding:12px 14px}
+body.desktop-shell.desktop-macos .login-intro-title{font-size:16px}
+body.desktop-shell.desktop-macos .login-intro-body{font-size:11.5px;line-height:1.48}
+body.desktop-shell.desktop-macos .modal h2{font-size:16px;margin-bottom:12px}
+body.desktop-shell.desktop-macos .modal .desc{font-size:11.8px;margin-bottom:14px;line-height:1.5}
+body.desktop-shell.desktop-macos .qr-shell{width:158px;height:158px;margin-bottom:12px}
+body.desktop-shell.desktop-macos #qr-img{width:158px;height:158px}
+body.desktop-shell.desktop-macos #qr-status{font-size:11.5px;margin-bottom:10px}
+body.desktop-shell.desktop-macos .dual-login-modal .btn-row{margin-top:12px;gap:8px}
+body.desktop-shell.desktop-macos .dual-login-modal .modal-btn{padding:7px 14px;font-size:12px}
 .cover-crop-modal{width:min(720px,92vw);max-width:min(720px,92vw);padding:28px;text-align:left}
 .cover-crop-modal h2{text-align:center;margin-bottom:22px}
 .cover-crop-layout{display:grid;grid-template-columns:minmax(260px,312px) 1fr;gap:24px;align-items:center}
@@ -1920,6 +1948,10 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
     <div id="search-results"></div>
   </div>
   <div id="upload-actions">
+    <button id="local-music-btn" class="local-music-btn" type="button" onclick="openLocalMusicImport()" title="导入本地音乐" aria-label="导入本地音乐">
+      <svg fill="none" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      <span>本地音乐</span>
+    </button>
     <button id="upload-btn" class="icon-btn" onclick="document.getElementById('file-input').click()" title="导入音乐或封面">
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
     </button>
@@ -16015,6 +16047,9 @@ function skipLoginAndFocusSearch() {
   setTimeout(function(){ runHomeSearch(''); }, 180);
 }
 function openHomeLocalImport() {
+  openLocalMusicImport();
+}
+function openLocalMusicImport() {
   homeForcedOpen = false;
   homeSuppressed = false;
   setHomeControlsLocked(false);
@@ -20058,6 +20093,7 @@ function handleFiles(files) {
     playAudio().then(function(ok){
       if (ok && currentLocalSong && currentLocalSong.localUrl === url) beginListenSession(currentLocalSong, null);
     });
+    showToast('已导入本地音乐: ' + localTitle);
     setTimeout(function(){
       if (currentLocalSong && currentLocalSong.localUrl === url) prepareLocalBeatAnalysis(currentLocalSong, url);
     }, 520);
@@ -24479,8 +24515,8 @@ var visualGuideSteps = [
   {
     selector: '#diy-mode-btn',
     kicker: '06 / DIY',
-    title: '高级功能在 DIY 玩家模式',
-    body: '视觉控制台、上传/封面、自定义歌词、音质和更多面板都会在这里展开。'
+    title: '打开 DIY 后导入本地音乐',
+    body: '点开 DIY 玩家模式后，会出现“本地音乐”入口；可以导入 mp3、flac、wav、ogg、m4a 并直接播放。'
   }
 ];
 var visualGuideStepsDiy = [
@@ -24491,10 +24527,10 @@ var visualGuideStepsDiy = [
     body: '这里可以随时切回默认模式。DIY 模式会显示完整控制台、上传、视觉面板和高级调参。'
   },
   {
-    selector: '#search-box',
-    kicker: '02 / Search',
-    title: '搜索源和导入入口会展开',
-    body: '顶部搜索支持更多来源切换，上传歌曲、封面等入口也会在 DIY 模式中显示。'
+    selector: '#local-music-btn',
+    kicker: '02 / Local',
+    title: '本地音乐从这里导入',
+    body: '点击“本地音乐”选择音频文件，Mineradio 会直接播放，并继续使用封面、歌词和粒子视觉。'
   },
   {
     selector: '#playlist-panel',
