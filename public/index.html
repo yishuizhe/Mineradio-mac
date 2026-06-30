@@ -261,6 +261,21 @@ body.home-wallpaper-preview #canvas-container{filter:none}
 .home-hero::after{content:'';position:absolute;left:28px;right:28px;bottom:22px;height:1px;background:linear-gradient(90deg,color-mix(in srgb,var(--home-accent) 0%,transparent),color-mix(in srgb,var(--home-accent) 52%,transparent),rgba(36,66,255,.24),rgba(248,244,238,.18),color-mix(in srgb,var(--home-accent) 0%,transparent));opacity:.82;pointer-events:none}
 .home-hero-inner{position:relative;z-index:2;height:100%;display:grid;grid-template-columns:minmax(0,1.16fr) minmax(150px,.64fr);grid-template-rows:auto auto auto auto minmax(150px,1fr);column-gap:18px}
 .home-hero-inner.home-construction-inner{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:18px;padding:4px 2px;min-height:100%}
+.home-local-deck{justify-content:space-between;gap:18px}
+.home-local-copy{position:relative;z-index:3;display:flex;flex-direction:column;gap:14px;max-width:430px}
+.home-local-kicker{font-size:10px;font-weight:800;letter-spacing:.22em;color:color-mix(in srgb,var(--home-accent) 66%,rgba(255,255,255,.46));text-transform:uppercase}
+.home-local-title{font-size:clamp(32px,4.45vw,58px);line-height:.98;font-weight:800;letter-spacing:0;color:rgba(255,255,255,.98);text-shadow:0 14px 44px rgba(0,0,0,.30)}
+.home-local-sub{max-width:380px;font-size:13px;line-height:1.64;color:rgba(255,255,255,.62)}
+.home-local-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:2px}
+.home-local-stage{position:relative;z-index:2;width:100%;min-height:204px;margin-top:auto;border-radius:24px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.018));overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 18px 52px rgba(0,0,0,.22)}
+.home-local-stage::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 18% 22%,rgba(0,245,212,.28),transparent 34%),radial-gradient(circle at 82% 72%,rgba(36,66,255,.24),transparent 38%),linear-gradient(90deg,rgba(255,255,255,.040) 0 1px,transparent 1px 32px);opacity:.82}
+.home-local-stage::after{content:'';position:absolute;left:24px;right:24px;bottom:28px;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),rgba(0,245,212,.48),transparent);opacity:.85}
+.home-orbit-disc{position:absolute;right:32px;top:30px;width:142px;aspect-ratio:1;border-radius:50%;background:repeating-radial-gradient(circle,rgba(255,255,255,.11) 0 1px,transparent 1px 9px),conic-gradient(from 220deg,#00f5d4,#2442ff,#f8f4ee,#9db8cf,#00f5d4);box-shadow:0 22px 54px rgba(0,0,0,.38),inset 0 0 0 14px rgba(6,7,10,.48);animation:home-disc-turn 16s linear infinite}
+.home-orbit-disc::before{content:'';position:absolute;inset:36%;border-radius:50%;background:rgba(8,9,13,.92);box-shadow:0 0 0 10px rgba(255,255,255,.06),inset 0 1px 0 rgba(255,255,255,.20)}
+.home-wave-rack{position:absolute;left:24px;right:190px;top:82px;height:76px;display:flex;align-items:end;gap:5px}
+.home-wave-rack span{flex:1;min-width:4px;height:var(--h,30px);border-radius:999px;background:linear-gradient(180deg,rgba(255,255,255,.92),var(--home-accent));box-shadow:0 0 16px color-mix(in srgb,var(--home-accent) 42%,transparent);animation:home-eq-rise 1.7s ease-in-out infinite;animation-delay:var(--d,0s);opacity:.86}
+.home-deck-label{position:absolute;left:24px;top:26px;font-size:10px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.50)}
+.home-deck-count{position:absolute;left:24px;bottom:38px;font-size:12px;font-weight:720;color:rgba(255,255,255,.78)}
 .home-kicker{grid-column:1;font-size:10px;font-weight:780;letter-spacing:.18em;color:color-mix(in srgb,var(--home-accent) 62%,rgba(255,255,255,.36));text-transform:uppercase;margin-bottom:14px}
 .home-title{grid-column:1;font-size:clamp(34px,4.6vw,58px);line-height:.98;font-weight:760;letter-spacing:0;color:rgba(255,255,255,.98);max-width:380px;text-shadow:0 10px 36px rgba(0,0,0,.26)}
 .home-title.home-construction-title{max-width:620px;font-size:clamp(32px,4.5vw,64px);line-height:1.08}
@@ -1948,7 +1963,7 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
     <div id="search-results"></div>
   </div>
   <div id="upload-actions">
-    <button id="local-music-btn" class="local-music-btn" type="button" onclick="openLocalMusicImport()" title="导入本地音乐" aria-label="导入本地音乐">
+    <button id="local-music-btn" class="local-music-btn" type="button" onclick="openLocalMusicImport()" title="导入本地音乐文件夹" aria-label="导入本地音乐文件夹">
       <svg fill="none" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
       <span>本地音乐</span>
     </button>
@@ -1968,9 +1983,24 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
 <section id="empty-home" aria-label="Mineradio home">
   <div class="empty-home-shell">
     <div class="home-hero">
-      <div class="home-hero-inner home-construction-inner">
-        <div class="home-title home-construction-title">🚧此处施工，敬请期待🚧</div>
-        <button class="home-chip home-console-chip" type="button" onclick="openHomePlayerConsole()">展开播放器控制台</button>
+      <div class="home-hero-inner home-construction-inner home-local-deck">
+        <div class="home-local-copy">
+          <div class="home-local-kicker">Local Station</div>
+          <div class="home-local-title">把你的音乐文件夹变成电台</div>
+          <div class="home-local-sub">导入一个本地音乐文件夹，Mineradio 会自动识别歌曲、生成当前队列，并从第一首开始播放。</div>
+          <div class="home-local-actions">
+            <button class="home-chip home-console-chip" type="button" onclick="openHomeLocalImport()">导入本地文件夹</button>
+            <button class="home-chip" type="button" onclick="openHomePlayerConsole()">展开播放器控制台</button>
+          </div>
+        </div>
+        <div class="home-local-stage" aria-hidden="true">
+          <div class="home-deck-label">Mineradio Deck</div>
+          <div class="home-wave-rack">
+            <span style="--h:28px;--d:-.1s"></span><span style="--h:54px;--d:-.4s"></span><span style="--h:34px;--d:-.7s"></span><span style="--h:68px;--d:-.2s"></span><span style="--h:44px;--d:-.9s"></span><span style="--h:72px;--d:-.5s"></span><span style="--h:38px;--d:-1.1s"></span><span style="--h:58px;--d:-.3s"></span><span style="--h:30px;--d:-.8s"></span><span style="--h:64px;--d:-.6s"></span><span style="--h:42px;--d:-1s"></span><span style="--h:56px;--d:-.25s"></span>
+          </div>
+          <div class="home-orbit-disc"></div>
+          <div class="home-deck-count">Folder queue ready</div>
+        </div>
       </div>
     </div>
 
@@ -2492,6 +2522,7 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
 </div>
 
 <input type="file" id="file-input" accept=".mp3,.flac,.wav,.ogg,.m4a,.jpg,.jpeg,.png,.webp" multiple style="display:none">
+<input type="file" id="folder-input" accept=".mp3,.flac,.wav,.ogg,.m4a" multiple webkitdirectory directory style="display:none">
 <input type="file" id="background-image-input" accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,.mov,image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" style="display:none">
 <div id="drop-overlay"><div class="drop-text">拖放音乐或封面</div></div>
 <div id="free-camera-hint"><b>自由镜头</b> R 固定/退出 · WASD 移动 · 鼠标转向 · Shift 加速 · Space/Ctrl 升降 · Q/E 轻微旋转 · 滚轮景深 · K 回正</div>
@@ -16054,7 +16085,7 @@ function openLocalMusicImport() {
   homeSuppressed = false;
   setHomeControlsLocked(false);
   updateEmptyHomeVisibility();
-  var input = document.getElementById('file-input');
+  var input = document.getElementById('folder-input') || document.getElementById('file-input');
   if (input) input.click();
 }
 function openHomeProductGuide() {
@@ -18499,6 +18530,74 @@ async function playQueueAt(idx, opts) {
     });
   }
 
+  if (song.type === 'local' || song.source === 'local' || song.localUrl) {
+    markPlayPhase('local-audio');
+    currentLocalSong = song;
+    safePlaybackStep('local-ui', function(){
+      document.getElementById('trial-banner').classList.remove('show');
+      updateCustomCoverButton();
+    });
+    if (!audio) { audio = new Audio(); audio.crossOrigin = 'anonymous'; }
+    else {
+      audioFadeSerial++;
+      clearAudioFadeTimers();
+      audio.pause();
+    }
+    bindPlaybackProgressEvents(audio);
+    applyVolumeToAudio();
+    audio.src = song.localUrl || '';
+    updatePlaybackProgressUi();
+    audio.onended = function(){
+      if (token !== trackSwitchToken) return;
+      finalizeListenSession(true);
+      if (playMode === 'single') setTimeout(function(){ playQueueAt(currentIdx, { autoRepeat: true }); }, 0);
+      else setTimeout(nextTrack, 0);
+    };
+    audio.onloadedmetadata = function(){
+      if (token !== trackSwitchToken) return;
+      song.duration = audio && isFinite(audio.duration) ? audio.duration : (song.duration || 0);
+      if (currentLocalSong && currentLocalSong.localKey === song.localKey) currentLocalSong.duration = song.duration;
+      if (lyricSourceMode === 'custom') applyCustomLyricState(song, true);
+    };
+    audio.load();
+    safePlaybackStep('local-visual-prep', function(){
+      currentBeatMap = null;
+      beatMapNextIdx = 0;
+      resetAudioVisualState();
+      resetBeatCameraSync(0);
+      cancelBeatAnalysisTimer();
+      cancelDjBeatAnalysisTimer();
+      beatMapToken++;
+      djBeatMapToken++;
+      resetDjBeatMapState();
+      setDjModeActive(false, song);
+    });
+    var localBeatUrl = song.localUrl || '';
+    setTimeout(function(){
+      if (token === trackSwitchToken && currentLocalSong && currentLocalSong.localKey === song.localKey) {
+        prepareLocalBeatAnalysis(currentLocalSong, localBeatUrl);
+      }
+    }, 520);
+    markPlayPhase('local-audio-start');
+    var localStarted = await playAudio({ silent: false });
+    if (!localStarted) {
+      forcePlaybackControlsInteractive();
+      showSourceFallbackNotice('本地歌曲已载入', '点击播放器中间的播放按钮继续播放。');
+      return;
+    }
+    forcePlaybackControlsInteractive();
+    safePlaybackStep('local-session-begin', function(){ beginListenSession(song, playbackContext); });
+    safePlaybackStep('local-lyrics', function(){
+      var localLyricLines = withLyricFallback([]);
+      setOriginalLyricsState(localLyricLines, false, 'fallback');
+      applyPreferredLyricsForCurrent(true);
+    });
+    safeRenderQueuePanel('play-local-queue-at', { scrollCurrent: miniQueueOpen });
+    scheduleShelfRebuild('play-local-queue-at', true);
+    suppressShelfPreviewForPlaybackSwitch();
+    return;
+  }
+
   try {
     markPlayPhase('source-url');
     var isQQPlayback = songProviderKey(song) === 'qq';
@@ -20026,89 +20125,66 @@ setInterval(function(){
 //  文件拖放
 // ============================================================
 document.getElementById('file-input').addEventListener('change', function(e){ handleFiles(e.target.files); e.target.value = ''; });
-function handleFiles(files) {
-  var audioFile = null, imgFile = null;
-  for (var i = 0; i < files.length; i++) {
-    var f = files[i];
-    if (f.type.startsWith('audio/') || /\.(mp3|flac|wav|ogg|m4a)$/i.test(f.name)) audioFile = f;
-    else if (f.type.startsWith('image/') || /\.(jpg|jpeg|png|webp)$/i.test(f.name)) imgFile = f;
-  }
-  if (audioFile) {
+document.getElementById('folder-input').addEventListener('change', function(e){ handleFiles(e.target.files, { folder: true }); e.target.value = ''; });
+function isLocalAudioFile(file) {
+  return !!(file && ((file.type && file.type.indexOf('audio/') === 0) || /\.(mp3|flac|wav|ogg|m4a)$/i.test(file.name || '')));
+}
+function isLocalImageFile(file) {
+  return !!(file && ((file.type && file.type.indexOf('image/') === 0) || /\.(jpg|jpeg|png|webp)$/i.test(file.name || '')));
+}
+function localFileSortKey(file) {
+  return String(file && (file.webkitRelativePath || file.name) || '').toLowerCase();
+}
+function localSongFromFile(file) {
+  var rel = file.webkitRelativePath || file.name || '';
+  var title = (file.name || '本地歌曲').replace(/\.[^.]+$/, '');
+  var folderBits = rel && rel.indexOf('/') >= 0 ? rel.split('/').slice(0, -1).filter(Boolean) : [];
+  var folderName = folderBits.length ? folderBits[folderBits.length - 1] : '本地文件';
+  return hydrateCustomCover({
+    type: 'local',
+    source: 'local',
+    name: title,
+    artist: folderName,
+    localKey: [rel || file.name, file.size || 0, file.lastModified || 0].join(':'),
+    localUrl: URL.createObjectURL(file),
+    duration: 0
+  });
+}
+function handleFiles(files, opts) {
+  opts = opts || {};
+  var list = Array.prototype.slice.call(files || []);
+  var audioFiles = list.filter(isLocalAudioFile).sort(function(a, b){
+    return localFileSortKey(a).localeCompare(localFileSortKey(b), 'zh-CN', { numeric: true, sensitivity: 'base' });
+  });
+  var imgFile = list.filter(isLocalImageFile)[0] || null;
+  if (audioFiles.length) {
     finalizeListenSession(false);
-    var url = URL.createObjectURL(audioFile);
-    var localTitle = audioFile.name.replace(/\.[^.]+$/, '');
-    trackSwitchToken++;
-    var token = trackSwitchToken;
-    var firstVisualPlay = !firstPlayDone;
     if (localBeatAnalysis.active) cancelLocalBeatAnalysis();
     closeGsapModal(document.getElementById('local-beat-modal'));
     cancelBeatAnalysisTimer();
     cancelDjBeatAnalysisTimer();
     beatMapToken++;
     djBeatMapToken++;
-    setDjModeActive(false);
-    currentBeatMap = null;
-    resetDjBeatMapState();
-    beatMapNextIdx = 0;
-    resetAudioVisualState();
-    resetBeatCameraSync(0);
+    playQueue = audioFiles.map(localSongFromFile);
     currentIdx = -1;
-    currentLocalSong = hydrateCustomCover({
-      type: 'local',
-      name: localTitle,
-      artist: '本地文件',
-      localKey: [audioFile.name, audioFile.size || 0, audioFile.lastModified || 0].join(':'),
-      localUrl: url,
-      duration: 0
-    });
-    updateCustomCoverButton();
-    document.getElementById('hint').classList.add('hidden');
-    document.getElementById('thumb-title').textContent = localTitle;
-    document.getElementById('thumb-artist').textContent = '本地文件';
-    updateControlTrackInfo({ name: localTitle, artist: '本地文件' });
-    document.getElementById('thumb-wrap').classList.add('visible');
-    safeRenderQueuePanel('play-local-file');
-    safeShelfRebuild('play-local-file', true);
-    suppressShelfPreviewForPlaybackSwitch();
-    if (firstVisualPlay) { firstPlayDone = true; tweenParticleAlpha(uniforms.uAlpha.value || 0, 1.0, 260); }
-    if (!audio) { audio = new Audio(); audio.crossOrigin = 'anonymous'; }
-    else audio.pause();
-    bindPlaybackProgressEvents(audio);
-    applyVolumeToAudio();
-    audio.src = url;
-    updatePlaybackProgressUi();
-    lyricSunEnergy = 0; lyricSunTarget = 0; lyricSunHold = 0; lyricSunAvg = 0; lyricSunPeak = 0.55;
-    audio.onended = function(){ finalizeListenSession(true); playing = false; setPlayIcon(false); };
-    audio.onloadedmetadata = function(){
-      if (currentLocalSong && currentLocalSong.localUrl === url) {
-        currentLocalSong.duration = audio && isFinite(audio.duration) ? audio.duration : 0;
-        if (lyricSourceMode === 'custom') applyCustomLyricState(currentLocalSong, true);
-      }
-    };
-    var localLyricLines = withLyricFallback([]);
-    setOriginalLyricsState(localLyricLines, false, 'fallback');
-    applyPreferredLyricsForCurrent(true);
-    document.getElementById('trial-banner').classList.remove('show');
-    audio.load();
-    playAudio().then(function(ok){
-      if (ok && currentLocalSong && currentLocalSong.localUrl === url) beginListenSession(currentLocalSong, null);
-    });
-    showToast('已导入本地音乐: ' + localTitle);
-    setTimeout(function(){
-      if (currentLocalSong && currentLocalSong.localUrl === url) prepareLocalBeatAnalysis(currentLocalSong, url);
-    }, 520);
-    var localCover = getCustomCoverForSong(currentLocalSong);
-    var localCoverOpts = { trackToken: token, deferHeavy: firstVisualPlay, delay: firstVisualPlay ? 60 : 0, timeout: firstVisualPlay ? 300 : 180 };
-    if (localCover) applyCoverDataUrl(localCover, localCoverOpts);
-    else if (!imgFile) loadCoverFromUrl('', localCoverOpts);
+    currentLocalSong = null;
+    safeRenderQueuePanel('import-local-folder', { scrollCurrent: true });
+    safeSwitchPlaylistTab('queue', 'import-local-folder');
+    safeShelfRebuild('import-local-folder', true);
+    var folderLabel = opts.folder
+      ? ((audioFiles[0].webkitRelativePath || '').split('/')[0] || '本地文件夹')
+      : '本地音乐';
+    showToast((opts.folder ? '已导入文件夹: ' : '已导入本地音乐: ') + folderLabel + ' · ' + audioFiles.length + ' 首');
+    playQueueAt(0, { manual: true }).catch(function(e){ console.warn('[LocalFolderPlay]', e); });
+    if (imgFile) {
+      setTimeout(function(){
+        loadCoverFromFile(imgFile, { trackToken: trackSwitchToken, deferHeavy: true, delay: 80, timeout: 320 });
+      }, 120);
+    }
+    return;
   }
-  if (imgFile) {
-    var uploadCoverOpts = audioFile
-      ? { trackToken: trackSwitchToken, deferHeavy: !!firstVisualPlay, delay: firstVisualPlay ? 60 : 0, timeout: firstVisualPlay ? 300 : 180 }
-      : null;
-    loadCoverFromFile(imgFile, uploadCoverOpts);
-  }
-  if (!audioFile) updateCustomCoverButton();
+  if (imgFile) loadCoverFromFile(imgFile, null);
+  updateCustomCoverButton();
 }
 var dropOv = document.getElementById('drop-overlay'), dragCount = 0;
 document.addEventListener('dragenter', function(e){ e.preventDefault(); dragCount++; dropOv.classList.add('show'); });
@@ -26425,6 +26501,7 @@ function toggleFullscreen() {
       scheduleMainRendererViewportRefresh('document-fullscreen-exit');
       return;
     }
+    document.body.classList.toggle('desktop-fullscreen', !desktopFullscreenActive);
     api.toggleFullscreen();
     scheduleMainRendererViewportRefresh('desktop-fullscreen-toggle');
     return;

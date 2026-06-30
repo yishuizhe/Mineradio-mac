@@ -738,6 +738,9 @@ function toggleFullscreen(win) {
     return;
   }
   windowFullscreenActive = true;
+  if (process.platform === 'darwin' && typeof win.setFullScreenable === 'function') {
+    win.setFullScreenable(true);
+  }
   win.setFullScreen(true);
   sendWindowState(win);
 }
@@ -1409,6 +1412,8 @@ async function createWindow() {
     frame: process.platform === 'darwin',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : undefined,
     trafficLightPosition: process.platform === 'darwin' ? { x: 22, y: 18 } : undefined,
+    fullscreenable: true,
+    simpleFullscreen: false,
     fullscreen: false,
     transparent: true,
     backgroundColor: '#00000000',
