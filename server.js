@@ -119,6 +119,14 @@ const MIME = {
   '.svg':  'image/svg+xml',
 };
 
+const AUDIO_MIME = {
+  '.mp3': 'audio/mpeg',
+  '.flac': 'audio/flac',
+  '.wav': 'audio/wav',
+  '.ogg': 'audio/ogg',
+  '.m4a': 'audio/mp4',
+};
+
 // ---------- Cookie 持久化 ----------
 const COOKIE_ATTRIBUTE_NAMES = new Set(['path', 'domain', 'expires', 'max-age', 'samesite', 'secure', 'httponly']);
 function collectCookiePair(picked, key, value) {
@@ -4160,6 +4168,49 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ---------- 音频代理 (支持 Range) ----------
+  if (pn === '/api/local-audio') {
+    try {
+      const filePath = url.searchParams.get('path');
+      if (!filePath) { res.writeHead(400); res.end('Missing path'); return; }
+      const ext = path.extname(filePath).toLowerCase();
+      if (!AUDIO_MIME[ext]) { res.writeHead(415); res.end('Unsupported local audio'); return; }
+      const stat = fs.statSync(filePath);
+      if (!stat.isFile()) { res.writeHead(404); res.end('Not found'); return; }
+      const range = req.headers.range || '';
+      const common = {
+        'Content-Type': AUDIO_MIME[ext],
+        'Access-Control-Allow-Origin': '*',
+        'Cross-Origin-Resource-Policy': 'cross-origin',
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'no-store',
+      };
+      if (range) {
+        const m = /^bytes=(\d*)-(\d*)$/.exec(range);
+        const start = m && m[1] ? Number(m[1]) : 0;
+        const end = m && m[2] ? Math.min(Number(m[2]), stat.size - 1) : stat.size - 1;
+        if (!Number.isFinite(start) || !Number.isFinite(end) || start > end || start >= stat.size) {
+          res.writeHead(416, { ...common, 'Content-Range': `bytes */${stat.size}` });
+          res.end();
+          return;
+        }
+        res.writeHead(206, {
+          ...common,
+          'Content-Length': end - start + 1,
+          'Content-Range': `bytes ${start}-${end}/${stat.size}`,
+        });
+        fs.createReadStream(filePath, { start, end }).pipe(res);
+      } else {
+        res.writeHead(200, { ...common, 'Content-Length': stat.size });
+        fs.createReadStream(filePath).pipe(res);
+      }
+    } catch (err) {
+      console.error('[LocalAudio]', err);
+      res.writeHead(404, { 'Access-Control-Allow-Origin': '*' });
+      res.end('Local audio unavailable');
+    }
+    return;
+  }
+
   if (pn === '/api/audio') {
     try {
       const audioUrl = url.searchParams.get('url');

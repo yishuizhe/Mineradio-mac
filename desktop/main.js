@@ -3,6 +3,7 @@ const net = require('net');
 const path = require('path');
 const fs = require('fs');
 const { execFile, spawn } = require('child_process');
+const { pathToFileURL } = require('url');
 
 let mainWindow = null;
 let localServer = null;
@@ -22,6 +23,7 @@ let wallpaperState = {};
 let htmlFullscreenActive = false;
 let windowFullscreenActive = false;
 let mainWindowStateTimer = null;
+let appIsQuitting = false;
 const registeredGlobalHotkeys = new Map();
 
 const WINDOWED_ASPECT = 16 / 9;
@@ -34,6 +36,7 @@ const APP_USER_MODEL_ID = 'com.mineradio.desktop';
 const APP_ICON_ICO = path.join(__dirname, '..', 'build', 'icon.ico');
 const APP_ICON_PNG = path.join(__dirname, '..', 'build', 'icon.png');
 const APP_ICON = process.platform === 'darwin' ? APP_ICON_PNG : APP_ICON_ICO;
+const LOCAL_AUDIO_EXTS = new Set(['.mp3', '.flac', '.wav', '.ogg', '.m4a']);
 const NETEASE_LOGIN_PARTITION = 'persist:mineradio-netease-login';
 const NETEASE_LOGIN_URL = 'https://music.163.com/#/login';
 const QQ_LOGIN_PARTITION = 'persist:mineradio-qqmusic-login';
@@ -268,6 +271,53 @@ function focusMainWindow() {
   mainWindow.focus();
   sendWindowState(mainWindow);
   return true;
+}
+
+function safeStat(filePath) {
+  try { return fs.statSync(filePath); } catch (e) { return null; }
+}
+
+function walkLocalAudioFiles(dir, out = []) {
+  let entries = [];
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch (e) {
+    return out;
+  }
+  for (const entry of entries) {
+    if (!entry || entry.name.startsWith('.')) continue;
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      walkLocalAudioFiles(fullPath, out);
+    } else if (entry.isFile() && LOCAL_AUDIO_EXTS.has(path.extname(entry.name).toLowerCase())) {
+      out.push(fullPath);
+    }
+  }
+  return out;
+}
+
+function localAudioUrlForPath(filePath) {
+  return `/api/local-audio?path=${encodeURIComponent(filePath)}`;
+}
+
+function localSongFromPath(filePath, rootDir) {
+  const stat = safeStat(filePath);
+  if (!stat || !stat.isFile()) return null;
+  const rel = rootDir ? path.relative(rootDir, filePath) : path.basename(filePath);
+  const parent = path.basename(path.dirname(filePath)) || '本地文件';
+  const name = path.basename(filePath).replace(/\.[^.]+$/, '');
+  return {
+    type: 'local',
+    source: 'local',
+    name,
+    artist: parent,
+    localPath: filePath,
+    localFileUrl: pathToFileURL(filePath).toString(),
+    localUrl: localAudioUrlForPath(filePath),
+    localRelativePath: rel,
+    localKey: [filePath, stat.size || 0, Math.round(stat.mtimeMs || 0)].join(':'),
+    duration: 0,
+  };
 }
 
 function createApplicationMenu() {
@@ -1180,6 +1230,27 @@ ipcMain.handle('desktop-window-close', (event) => {
   getSenderWindow(event)?.close();
 });
 
+ipcMain.handle('mineradio-local-music-open-folder', async (event) => {
+  const owner = getSenderWindow(event);
+  const result = await dialog.showOpenDialog(owner || undefined, {
+    title: '选择本地音乐文件夹',
+    properties: ['openDirectory'],
+  });
+  if (result.canceled || !result.filePaths || !result.filePaths[0]) {
+    return { canceled: true, songs: [] };
+  }
+  const rootDir = result.filePaths[0];
+  const files = walkLocalAudioFiles(rootDir)
+    .sort((a, b) => a.localeCompare(b, 'zh-CN', { numeric: true, sensitivity: 'base' }));
+  const songs = files.map((filePath) => localSongFromPath(filePath, rootDir)).filter(Boolean);
+  return {
+    canceled: false,
+    folderPath: rootDir,
+    folderName: path.basename(rootDir) || rootDir,
+    songs,
+  };
+});
+
 ipcMain.handle('mineradio-hotkeys-configure-global', (_event, bindings) => {
   return configureMineradioGlobalHotkeys(bindings);
 });
@@ -1461,6 +1532,15 @@ async function createWindow() {
   mainWindow.on('blur', () => sendWindowState(mainWindow));
   mainWindow.on('move', () => scheduleWindowStateSend(mainWindow));
   mainWindow.on('resize', () => scheduleWindowStateSend(mainWindow));
+  mainWindow.on('close', (event) => {
+    if (process.platform !== 'darwin' || appIsQuitting) return;
+    event.preventDefault();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isFullScreen()) mainWindow.setFullScreen(false);
+      mainWindow.hide();
+      sendWindowState(mainWindow);
+    }
+  });
   mainWindow.on('closed', () => {
     if (mainWindowStateTimer) {
       clearTimeout(mainWindowStateTimer);
@@ -1523,6 +1603,7 @@ if (!gotSingleInstanceLock) {
   });
 
   app.on('before-quit', () => {
+    appIsQuitting = true;
     unregisterMineradioGlobalHotkeys();
     closeOverlayWindows();
     if (localServer && localServer.close) localServer.close();
