@@ -8,6 +8,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
+    "check": "node --check server.js && node --check desktop/main.js && node --check desktop/preload.js && node --check desktop/overlay-preload.js",
     "icon:mac": "node build/create-mac-icon.js",
     "build:mac": "npm run icon:mac && electron-builder --mac dmg zip",
     "build:mac:dir": "npm run icon:mac && electron-builder --mac dir",

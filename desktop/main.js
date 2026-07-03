@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, shell, screen, session, globalShortcut, dia
 const net = require('net');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { execFile, spawn } = require('child_process');
 const { pathToFileURL } = require('url');
 
@@ -264,6 +265,43 @@ function getSenderWindow(event) {
   return BrowserWindow.fromWebContents(event.sender);
 }
 
+function openExternalUrl(url) {
+  try {
+    const parsed = new URL(String(url || ''));
+    if (!['http:', 'https:', 'mailto:'].includes(parsed.protocol)) return false;
+    shell.openExternal(parsed.toString()).catch(() => {});
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function hostnameMatches(url, suffixes) {
+  try {
+    const parsed = new URL(String(url || ''));
+    if (!/^https?:$/.test(parsed.protocol)) return false;
+    const host = parsed.hostname.toLowerCase();
+    return suffixes.some((suffix) => host === suffix || host.endsWith('.' + suffix));
+  } catch (e) {
+    return false;
+  }
+}
+
+function isQQLoginNavigationUrl(url) {
+  return hostnameMatches(url, ['qq.com', 'qqmusic.qq.com', 'weixin.qq.com', 'wx.qq.com']);
+}
+
+function isLocalAppUrl(url) {
+  try {
+    const parsed = new URL(String(url || ''));
+    const host = parsed.hostname.toLowerCase();
+    const port = Number(parsed.port || (parsed.protocol === 'https:' ? 443 : 80));
+    return parsed.protocol === 'http:' && (host === '127.0.0.1' || host === 'localhost') && port === Number(mainServerPort || process.env.PORT || 3000);
+  } catch (e) {
+    return false;
+  }
+}
+
 function focusMainWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return false;
   if (mainWindow.isMinimized()) mainWindow.restore();
@@ -297,7 +335,8 @@ function walkLocalAudioFiles(dir, out = []) {
 }
 
 function localAudioUrlForPath(filePath) {
-  return `/api/local-audio?path=${encodeURIComponent(filePath)}`;
+  const token = String(process.env.MINERADIO_LOCAL_AUDIO_TOKEN || '');
+  return `/api/local-audio?path=${encodeURIComponent(filePath)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
 }
 
 function localSongFromPath(filePath, rootDir) {
@@ -544,7 +583,7 @@ async function openNeteaseMusicLoginWindow(owner) {
       if (/^https?:\/\/([^/]+\.)?(163|music\.163|netease)\.com/i.test(url)) {
         loginWindow.loadURL(url).catch((e) => console.warn('Netease login popup navigation failed:', e.message));
       } else if (/^https?:\/\//i.test(url)) {
-        shell.openExternal(url).catch(() => {});
+        openExternalUrl(url);
       }
       return { action: 'deny' };
     });
@@ -579,7 +618,7 @@ async function openNeteaseMusicLoginWindow(owner) {
       try {
         const cookie = await readNeteaseLoginCookieHeader(cookieSession);
         resolve(neteaseCookieHasLogin(cookie)
-          ? { ok: true, cookie, partial: !qqCookieHasPlaybackLogin(cookie) }
+          ? { ok: true, cookie }
           : { ok: false, cancelled: true, message: '网易云登录窗口已关闭' });
       } catch (e) {
         resolve({ ok: false, error: e.message || '网易云登录窗口已关闭' });
@@ -650,10 +689,10 @@ async function openQQMusicLoginWindow(owner) {
     };
 
     loginWindow.webContents.setWindowOpenHandler(({ url }) => {
-      if (/^https?:\/\//i.test(url)) {
+      if (isQQLoginNavigationUrl(url)) {
         loginWindow.loadURL(url).catch((e) => console.warn('QQ login popup navigation failed:', e.message));
-      } else {
-        shell.openExternal(url).catch(() => {});
+      } else if (/^https?:\/\//i.test(url)) {
+        openExternalUrl(url);
       }
       return { action: 'deny' };
     });
@@ -1458,6 +1497,9 @@ async function createWindow() {
   process.env.COOKIE_FILE = path.join(app.getPath('userData'), '.cookie');
   process.env.QQ_COOKIE_FILE = path.join(app.getPath('userData'), '.qq-cookie');
   process.env.MINERADIO_UPDATE_DIR = getUpdateDownloadDir();
+  if (!process.env.MINERADIO_LOCAL_AUDIO_TOKEN) {
+    process.env.MINERADIO_LOCAL_AUDIO_TOKEN = crypto.randomBytes(24).toString('hex');
+  }
   try {
     const legacyQQCookie = path.join(__dirname, '..', '.qq-cookie');
     if (fs.existsSync(legacyQQCookie)) {
@@ -1502,8 +1544,14 @@ async function createWindow() {
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    openExternalUrl(url);
     return { action: 'deny' };
+  });
+
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (isLocalAppUrl(url)) return;
+    event.preventDefault();
+    openExternalUrl(url);
   });
 
   mainWindow.webContents.once('did-finish-load', () => {

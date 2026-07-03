@@ -48,6 +48,7 @@ const http = require('http');
 const https = require('https');
 const fs   = require('fs');
 const path = require('path');
+const os = require('os');
 const crypto = require('crypto');
 const tls = require('tls');
 const { once } = require('events');
@@ -55,17 +56,20 @@ const { fileURLToPath } = require('url');
 const { analyzePodcastDjStream, analyzePodcastDjIntro } = require('./dj-analyzer');
 
 const PORT = process.env.PORT || 3000;
-const HOST = process.env.HOST || '0.0.0.0';
+const HOST = process.env.HOST || '127.0.0.1';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const COOKIE_FILE = process.env.COOKIE_FILE || path.join(__dirname, '.cookie');
 const QQ_COOKIE_FILE = process.env.QQ_COOKIE_FILE || path.join(__dirname, '.qq-cookie');
 const UPDATE_WORK_DIR = process.env.MINERADIO_UPDATE_DIR || path.join(__dirname, 'updates');
 const UPDATE_DOWNLOAD_DIR = process.env.MINERADIO_UPDATE_DOWNLOAD_DIR || path.join(UPDATE_WORK_DIR, 'downloads');
 const UPDATE_PATCH_BACKUP_DIR = process.env.MINERADIO_PATCH_BACKUP_DIR || path.join(UPDATE_WORK_DIR, 'backups', 'patches');
-const BEATMAP_CACHE_DIR = process.env.MINERADIO_BEAT_CACHE_DIR || 'D:\\MineradioCache\\beatmaps';
+const BEATMAP_CACHE_DIR = process.env.MINERADIO_BEAT_CACHE_DIR || defaultBeatMapCacheDir();
 const APP_PACKAGE = readPackageInfo();
 const APP_VERSION = process.env.MINERADIO_VERSION || APP_PACKAGE.version || '0.9.11';
 const UPDATE_CONFIG = readUpdateConfig(APP_PACKAGE);
+const PUBLIC_ROOT = path.join(__dirname, 'public');
+const BUILD_ROOT = path.join(__dirname, 'build');
+const LOCAL_AUDIO_TOKEN = String(process.env.MINERADIO_LOCAL_AUDIO_TOKEN || '');
 const PATCH_MAX_BYTES = 12 * 1024 * 1024;
 const PATCH_ALLOWED_ROOTS = new Set(['public', 'desktop', 'build']);
 const PATCH_ALLOWED_FILES = new Set(['server.js', 'dj-analyzer.js', 'package.json', 'package-lock.json']);
@@ -86,6 +90,12 @@ const WEATHER_DEFAULT_LOCATION = {
 };
 
 const updateDownloadJobs = new Map();
+
+function defaultBeatMapCacheDir() {
+  if (process.platform === 'win32') return 'D:\\MineradioCache\\beatmaps';
+  if (process.platform === 'darwin') return path.join(os.homedir(), 'Library', 'Caches', 'Mineradio', 'beatmaps');
+  return path.join(os.homedir(), '.cache', 'mineradio', 'beatmaps');
+}
 
 function applySystemCertificateAuthorities() {
   try {
@@ -115,8 +125,17 @@ const MIME = {
   '.json': 'application/json',
   '.png':  'image/png',
   '.jpg':  'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.avif': 'image/avif',
+  '.bmp':  'image/bmp',
   '.ico':  'image/x-icon',
   '.svg':  'image/svg+xml',
+  '.bin':  'application/octet-stream',
+  '.wasm': 'application/wasm',
+  '.map':  'application/json',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
 };
 
 const AUDIO_MIME = {
@@ -195,23 +214,215 @@ function saveQQCookie(c) {
 }
 
 // ---------- 工具 ----------
+function isPathInside(filePath, rootDir) {
+  const rel = path.relative(path.resolve(rootDir), path.resolve(filePath));
+  return rel === '' || (!!rel && !rel.startsWith('..') && !path.isAbsolute(rel));
+}
+function isPathInsideAny(filePath, roots) {
+  return roots.some(root => isPathInside(filePath, root));
+}
+function appendVary(current, value) {
+  const parts = String(current || '').split(',').map(item => item.trim()).filter(Boolean);
+  if (!parts.some(item => item.toLowerCase() === value.toLowerCase())) parts.push(value);
+  return parts.join(', ');
+}
+function isLoopbackHost(hostname) {
+  const host = String(hostname || '').replace(/^\[|\]$/g, '').toLowerCase();
+  return host === 'localhost' || host === '::1' || host === '0:0:0:0:0:0:0:1' || /^127(?:\.\d{1,3}){3}$/.test(host);
+}
+function isAllowedLocalOrigin(origin) {
+  try {
+    const u = new URL(String(origin || ''));
+    return /^https?:$/.test(u.protocol) && isLoopbackHost(u.hostname);
+  } catch (e) {
+    return false;
+  }
+}
+function appendCorsHeaders(headers, req) {
+  headers = headers || {};
+  const origin = req && req.headers ? req.headers.origin : '';
+  if (origin && isAllowedLocalOrigin(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+    headers.Vary = appendVary(headers.Vary, 'Origin');
+  } else if (!origin) {
+    headers['Access-Control-Allow-Origin'] = '*';
+  }
+  headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
+  headers['Access-Control-Allow-Headers'] = 'Content-Type, Range';
+  headers['Access-Control-Expose-Headers'] = 'Content-Length, Content-Range, Accept-Ranges';
+  return headers;
+}
+function isAllowedApiRequest(req) {
+  const origin = req && req.headers ? req.headers.origin : '';
+  const fetchSite = String(req && req.headers && req.headers['sec-fetch-site'] || '').toLowerCase();
+  if (origin && !isAllowedLocalOrigin(origin)) return false;
+  if (fetchSite === 'cross-site') return false;
+  return true;
+}
+function sendText(res, status, text, headers) {
+  const body = Buffer.from(String(text || ''));
+  const req = res._mineradioReq || {};
+  res.writeHead(status || 200, {
+    'Content-Type': 'text/plain; charset=utf-8',
+    'Content-Length': body.length,
+    ...(headers || {}),
+  });
+  if (req.method === 'HEAD') res.end();
+  else res.end(body);
+}
+function staticCacheControl(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === '.html') return 'no-store, no-cache, must-revalidate';
+  if (isPathInside(filePath, path.join(PUBLIC_ROOT, 'vendor')) || isPathInside(filePath, path.join(PUBLIC_ROOT, 'assets')) || isPathInside(filePath, BUILD_ROOT)) {
+    return 'public, max-age=31536000, immutable';
+  }
+  return 'public, max-age=3600';
+}
+function staticEtag(stat) {
+  return `W/"${stat.size.toString(16)}-${Math.round(stat.mtimeMs).toString(16)}"`;
+}
+function requestHasFreshStaticCache(req, stat, etag) {
+  if (!req || !req.headers) return false;
+  const inm = String(req.headers['if-none-match'] || '');
+  if (inm && inm.split(',').map(item => item.trim()).includes(etag)) return true;
+  const ims = Date.parse(req.headers['if-modified-since'] || '');
+  return Number.isFinite(ims) && Math.floor(stat.mtimeMs / 1000) * 1000 <= ims;
+}
 function serveStatic(res, filePath) {
-  const ext = path.extname(filePath);
-  fs.readFile(filePath, (err, data) => {
-    if (err) { res.writeHead(404); res.end('Not Found'); return; }
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'text/plain' });
-    res.end(data);
+  const req = res._mineradioReq || {};
+  if (req.method && req.method !== 'GET' && req.method !== 'HEAD') {
+    sendText(res, 405, 'Method Not Allowed', { Allow: 'GET, HEAD' });
+    return;
+  }
+  const target = path.resolve(filePath);
+  if (!isPathInsideAny(target, [PUBLIC_ROOT, BUILD_ROOT])) {
+    sendText(res, 403, 'Forbidden');
+    return;
+  }
+  fs.stat(target, (err, stat) => {
+    if (err || !stat.isFile()) {
+      sendText(res, 404, 'Not Found');
+      return;
+    }
+    const ext = path.extname(target).toLowerCase();
+    const etag = staticEtag(stat);
+    const headers = {
+      'Content-Type': MIME[ext] || 'application/octet-stream',
+      'Content-Length': stat.size,
+      'Cache-Control': staticCacheControl(target),
+      ETag: etag,
+      'Last-Modified': stat.mtime.toUTCString(),
+    };
+    if (requestHasFreshStaticCache(req, stat, etag)) {
+      const notModifiedHeaders = { ...headers };
+      delete notModifiedHeaders['Content-Length'];
+      res.writeHead(304, notModifiedHeaders);
+      res.end();
+      return;
+    }
+    res.writeHead(200, headers);
+    if (req.method === 'HEAD') {
+      res.end();
+      return;
+    }
+    const stream = fs.createReadStream(target);
+    stream.on('error', () => {
+      if (res.headersSent) res.destroy();
+      else sendText(res, 500, 'Read failed');
+    });
+    res.on('close', () => stream.destroy());
+    stream.pipe(res);
   });
 }
 function sendJSON(res, data, status) {
-  res.writeHead(status || 200, {
+  const req = res._mineradioReq || {};
+  const body = Buffer.from(JSON.stringify(data));
+  res.writeHead(status || 200, appendCorsHeaders({
     'Content-Type': 'application/json; charset=utf-8',
-    'Access-Control-Allow-Origin': '*',
+    'Content-Length': body.length,
     'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
     'Pragma': 'no-cache',
     'Expires': '0',
+  }, req));
+  if (req.method === 'HEAD') res.end();
+  else res.end(body);
+}
+function resolvePublicStaticPath(pathname) {
+  let decoded = '';
+  try {
+    decoded = decodeURIComponent(pathname === '/' ? '/index.html' : pathname);
+  } catch (e) {
+    return null;
+  }
+  const rel = decoded.replace(/^\/+/, '');
+  const target = path.resolve(PUBLIC_ROOT, rel || 'index.html');
+  return isPathInside(target, PUBLIC_ROOT) ? target : null;
+}
+function hasValidLocalAudioToken(url) {
+  if (!LOCAL_AUDIO_TOKEN) return true;
+  const token = String(url.searchParams.get('token') || '');
+  if (token.length !== LOCAL_AUDIO_TOKEN.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(LOCAL_AUDIO_TOKEN));
+  } catch (e) {
+    return false;
+  }
+}
+function parseRangeHeader(range, size) {
+  if (!range) return null;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(String(range || '').trim());
+  if (!m) return { unsatisfiable: true };
+  let start;
+  let end;
+  if (m[1] === '') {
+    const suffix = Number(m[2]);
+    if (!Number.isFinite(suffix) || suffix <= 0) return { unsatisfiable: true };
+    start = Math.max(0, size - suffix);
+    end = size - 1;
+  } else {
+    start = Number(m[1]);
+    end = m[2] ? Number(m[2]) : size - 1;
+  }
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start > end || start >= size) {
+    return { unsatisfiable: true };
+  }
+  return { start, end: Math.min(end, size - 1) };
+}
+function pipeFileToResponse(res, filePath, range) {
+  const stream = fs.createReadStream(filePath, range || {});
+  stream.on('error', () => {
+    if (res.headersSent) res.destroy();
+    else sendText(res, 500, 'Read failed');
   });
-  res.end(JSON.stringify(data));
+  res.on('close', () => stream.destroy());
+  stream.pipe(res);
+}
+async function pipeWebBodyToResponse(res, body) {
+  if (!body || typeof body.getReader !== 'function') {
+    res.end();
+    return;
+  }
+  const reader = body.getReader();
+  let closed = false;
+  const onClose = () => {
+    closed = true;
+    try { reader.cancel(); } catch (e) {}
+  };
+  res.once('close', onClose);
+  try {
+    while (!closed) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      const buf = Buffer.from(chunk.value);
+      if (!res.write(buf) && !res.destroyed) {
+        await Promise.race([once(res, 'drain'), once(res, 'close')]).catch(() => {});
+      }
+      if (res.destroyed || res.writableEnded) break;
+    }
+  } finally {
+    res.removeListener('close', onClose);
+    if (!closed && !res.destroyed && !res.writableEnded) res.end();
+  }
 }
 function readPackageInfo() {
   try {
@@ -516,7 +727,7 @@ function beatCacheRootInfo() {
   const dir = path.resolve(BEATMAP_CACHE_DIR);
   const root = path.parse(dir).root;
   const drive = root ? root.replace(/[\\\/]+$/, '').toUpperCase() : '';
-  const allowed = !!root && !/^C:$/i.test(drive);
+  const allowed = !!root && !(process.platform === 'win32' && /^C:$/i.test(drive));
   const available = allowed && fs.existsSync(root);
   return { dir, root, drive, allowed, available };
 }
@@ -3249,8 +3460,20 @@ async function getLoginInfo() {
 //  HTTP Server
 // ====================================================================
 const server = http.createServer(async (req, res) => {
+  res._mineradioReq = req;
   const url = new URL(req.url, 'http://localhost:' + PORT);
   const pn = url.pathname;
+
+  if (pn.startsWith('/api/') && req.method === 'OPTIONS') {
+    res.writeHead(isAllowedApiRequest(req) ? 204 : 403, appendCorsHeaders({ 'Content-Length': 0 }, req));
+    res.end();
+    return;
+  }
+
+  if (pn.startsWith('/api/') && !isAllowedApiRequest(req)) {
+    sendJSON(res, { ok: false, error: 'FORBIDDEN_ORIGIN' }, 403);
+    return;
+  }
 
   if (pn === '/api/app/version') {
     sendJSON(res, {
@@ -4145,24 +4368,20 @@ const server = http.createServer(async (req, res) => {
       const coverUrl = url.searchParams.get('url');
       // URL 校验: 必须是 http(s) 开头, 否则直接 404 (不要让 fetch 抛错)
       if (!coverUrl || !/^https?:\/\//i.test(coverUrl)) {
-        res.writeHead(400, { 'Access-Control-Allow-Origin': '*' });
-        res.end('Invalid cover url');
+        sendText(res, 400, 'Invalid cover url', appendCorsHeaders({}, req));
         return;
       }
-      const resp = await fetch(coverUrl, { headers: { 'User-Agent': UA, 'Referer': 'https://music.163.com/' } });
+      const resp = await fetchWithTimeout(coverUrl, { headers: { 'User-Agent': UA, 'Referer': 'https://music.163.com/' } }, 10000);
       const ct  = resp.headers.get('content-type') || 'image/jpeg';
       const cl  = resp.headers.get('content-length');
-      const hdr = {
+      const hdr = appendCorsHeaders({
         'Content-Type': ct,
-        'Access-Control-Allow-Origin': '*',
         'Cross-Origin-Resource-Policy': 'cross-origin',
         'Cache-Control': 'public, max-age=86400',
-      };
+      }, req);
       if (cl) hdr['Content-Length'] = cl;
       res.writeHead(resp.status, hdr);
-      const reader = resp.body.getReader();
-      while (true) { const c = await reader.read(); if (c.done) break; res.write(c.value); }
-      res.end();
+      await pipeWebBodyToResponse(res, resp.body);
     } catch (err) { console.error('[Cover]', err); res.writeHead(500); res.end(); }
     return;
   }
@@ -4172,41 +4391,42 @@ const server = http.createServer(async (req, res) => {
     try {
       const filePath = url.searchParams.get('path');
       if (!filePath) { res.writeHead(400); res.end('Missing path'); return; }
+      if (!hasValidLocalAudioToken(url)) {
+        sendText(res, 403, 'Invalid local audio token', appendCorsHeaders({}, req));
+        return;
+      }
       const ext = path.extname(filePath).toLowerCase();
       if (!AUDIO_MIME[ext]) { res.writeHead(415); res.end('Unsupported local audio'); return; }
       const stat = fs.statSync(filePath);
       if (!stat.isFile()) { res.writeHead(404); res.end('Not found'); return; }
       const range = req.headers.range || '';
-      const common = {
+      const common = appendCorsHeaders({
         'Content-Type': AUDIO_MIME[ext],
-        'Access-Control-Allow-Origin': '*',
         'Cross-Origin-Resource-Policy': 'cross-origin',
         'Accept-Ranges': 'bytes',
         'Cache-Control': 'no-store',
-      };
+      }, req);
       if (range) {
-        const m = /^bytes=(\d*)-(\d*)$/.exec(range);
-        const start = m && m[1] ? Number(m[1]) : 0;
-        const end = m && m[2] ? Math.min(Number(m[2]), stat.size - 1) : stat.size - 1;
-        if (!Number.isFinite(start) || !Number.isFinite(end) || start > end || start >= stat.size) {
+        const parsed = parseRangeHeader(range, stat.size);
+        if (!parsed || parsed.unsatisfiable) {
           res.writeHead(416, { ...common, 'Content-Range': `bytes */${stat.size}` });
           res.end();
           return;
         }
+        const { start, end } = parsed;
         res.writeHead(206, {
           ...common,
           'Content-Length': end - start + 1,
           'Content-Range': `bytes ${start}-${end}/${stat.size}`,
         });
-        fs.createReadStream(filePath, { start, end }).pipe(res);
+        pipeFileToResponse(res, filePath, { start, end });
       } else {
         res.writeHead(200, { ...common, 'Content-Length': stat.size });
-        fs.createReadStream(filePath).pipe(res);
+        pipeFileToResponse(res, filePath);
       }
     } catch (err) {
       console.error('[LocalAudio]', err);
-      res.writeHead(404, { 'Access-Control-Allow-Origin': '*' });
-      res.end('Local audio unavailable');
+      sendText(res, 404, 'Local audio unavailable', appendCorsHeaders({}, req));
     }
     return;
   }
@@ -4215,20 +4435,22 @@ const server = http.createServer(async (req, res) => {
     try {
       const audioUrl = url.searchParams.get('url');
       if (!audioUrl) { res.writeHead(400); res.end('Missing url'); return; }
+      if (!/^https?:\/\//i.test(audioUrl)) {
+        sendText(res, 400, 'Invalid audio url', appendCorsHeaders({}, req));
+        return;
+      }
       const range = req.headers.range || '';
       const hdr = audioProxyHeadersFor(audioUrl, range);
-      const up = await fetch(audioUrl, { headers: hdr });
-      const out = {
+      const up = await fetchWithTimeout(audioUrl, { headers: hdr }, 12000);
+      const out = appendCorsHeaders({
         'Content-Type': audioContentTypeForUrl(audioUrl, up.headers.get('content-type')),
-        'Access-Control-Allow-Origin': '*',
         'Accept-Ranges': 'bytes',
-      };
+        'Cache-Control': 'no-store',
+      }, req);
       const cl = up.headers.get('content-length'); if (cl) out['Content-Length'] = cl;
       const cr = up.headers.get('content-range');  if (cr) out['Content-Range']  = cr;
       res.writeHead(up.status, out);
-      const reader = up.body.getReader();
-      while (true) { const c = await reader.read(); if (c.done) break; res.write(c.value); }
-      res.end();
+      await pipeWebBodyToResponse(res, up.body);
     } catch (err) { console.error('[Audio]', err); res.writeHead(500); res.end(); }
     return;
   }
@@ -4239,8 +4461,11 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  let filePath = pn === '/' ? '/index.html' : pn;
-  filePath = path.join(__dirname, 'public', filePath);
+  const filePath = resolvePublicStaticPath(pn);
+  if (!filePath) {
+    sendText(res, 400, 'Bad Request');
+    return;
+  }
   serveStatic(res, filePath);
 });
 

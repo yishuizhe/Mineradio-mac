@@ -18207,7 +18207,9 @@ function bindVolumeControls() {
 //  播放队列
 // ============================================================
 function localAudioUrlFromPath(localPath) {
-  return localPath ? '/api/local-audio?path=' + encodeURIComponent(localPath) : '';
+  if (!localPath) return '';
+  var token = window.desktopWindow && window.desktopWindow.localAudioToken ? String(window.desktopWindow.localAudioToken) : '';
+  return '/api/local-audio?path=' + encodeURIComponent(localPath) + (token ? '&token=' + encodeURIComponent(token) : '');
 }
 function normalizeStoredLocalSong(song) {
   if (!song || !(song.localPath || song.localUrl)) return null;

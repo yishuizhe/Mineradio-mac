@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('desktopWindow', {
   isDesktop: true,
   platform: process.platform,
   isMac: process.platform === 'darwin',
+  localAudioToken: process.env.MINERADIO_LOCAL_AUDIO_TOKEN || '',
   minimize: () => ipcRenderer.invoke('desktop-window-minimize'),
   toggleMaximize: () => ipcRenderer.invoke('desktop-window-toggle-maximize'),
   toggleFullscreen: () => ipcRenderer.invoke('desktop-window-toggle-fullscreen'),
