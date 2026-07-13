@@ -337,11 +337,20 @@ function serveStatic(res, filePath) {
 function sendJSON(res, data, status) {
   const req = res._mineradioReq || {};
   const statusCode = status || 200;
-  let responseData = data;
   if (statusCode >= 500) {
-    responseData = { error: 'Internal request failed' };
+    const internalBody = Buffer.from('{"error":"Internal request failed"}');
+    res.writeHead(statusCode, appendCorsHeaders({
+      'Content-Type': 'application/json; charset=utf-8',
+      'Content-Length': internalBody.length,
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    }, req));
+    if (req.method === 'HEAD') res.end();
+    else res.end(internalBody);
+    return;
   }
-  const body = Buffer.from(JSON.stringify(responseData));
+  const body = Buffer.from(JSON.stringify(data));
   res.writeHead(statusCode, appendCorsHeaders({
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': body.length,
