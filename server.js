@@ -337,7 +337,7 @@ function serveStatic(res, filePath) {
 function sendJSON(res, data, status) {
   const req = res._mineradioReq || {};
   const statusCode = status || 200;
-  if (statusCode >= 500) {
+  if (statusCode >= 500 || (data && typeof data === 'object' && Object.prototype.hasOwnProperty.call(data, 'error'))) {
     const internalBody = Buffer.from('{"error":"Internal request failed"}');
     res.writeHead(statusCode, appendCorsHeaders({
       'Content-Type': 'application/json; charset=utf-8',
