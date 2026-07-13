@@ -338,8 +338,8 @@ function sendJSON(res, data, status) {
   const req = res._mineradioReq || {};
   const statusCode = status || 200;
   let responseData = data;
-  if (statusCode >= 500 && data && typeof data === 'object' && Object.prototype.hasOwnProperty.call(data, 'error')) {
-    responseData = { ...data, error: 'Internal request failed' };
+  if (statusCode >= 500) {
+    responseData = { error: 'Internal request failed' };
   }
   const body = Buffer.from(JSON.stringify(responseData));
   res.writeHead(statusCode, appendCorsHeaders({
