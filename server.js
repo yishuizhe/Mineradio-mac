@@ -4026,7 +4026,7 @@ const server = http.createServer(async (req, res) => {
       sendJSON(res, { ok: true, map });
     } catch (err) {
       console.error('[PodcastDjBeatmap]', err);
-      sendJSON(res, { ok: false, error: err.message || String(err) }, 500);
+      sendJSON(res, { ok: false, error: 'Podcast analysis failed' }, 500);
     }
     return;
   }
