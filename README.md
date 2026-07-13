@@ -1,5 +1,9 @@
 # Mineradio macOS
 
+[![CI](https://github.com/yishuizhe/Mineradio-mac/actions/workflows/ci.yml/badge.svg)](https://github.com/yishuizhe/Mineradio-mac/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/yishuizhe/Mineradio-mac)](https://github.com/yishuizhe/Mineradio-mac/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/yishuizhe/Mineradio-mac/total)](https://github.com/yishuizhe/Mineradio-mac/releases)
+
 ![Mineradio 暗场启动页](./docs/assets/readme/cinema-beat-smoke.png)
 
 这是基于 [XxHuberrr/Mineradio](https://github.com/XxHuberrr/Mineradio) 源代码整理的 macOS 端版本。原项目是一款沉浸式桌面音乐播放器，包含天气电台、网易云音乐/QQ 音乐登录与搜索、歌词舞台、粒子视觉、桌面歌词和 3D 歌单架等体验。
