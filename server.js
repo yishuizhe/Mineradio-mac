@@ -336,8 +336,13 @@ function serveStatic(res, filePath) {
 }
 function sendJSON(res, data, status) {
   const req = res._mineradioReq || {};
-  const body = Buffer.from(JSON.stringify(data));
-  res.writeHead(status || 200, appendCorsHeaders({
+  const statusCode = status || 200;
+  let responseData = data;
+  if (statusCode >= 500 && data && typeof data === 'object' && Object.prototype.hasOwnProperty.call(data, 'error')) {
+    responseData = { ...data, error: 'Internal request failed' };
+  }
+  const body = Buffer.from(JSON.stringify(responseData));
+  res.writeHead(statusCode, appendCorsHeaders({
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': body.length,
     'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
@@ -848,7 +853,7 @@ async function fetchWithTimeout(url, opts, timeoutMs) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs || 12000);
   try {
-    return await fetch(url, Object.assign({}, opts || {}, { signal: controller.signal }));
+    return await fetch(trustedRemoteUrl(url), Object.assign({}, opts || {}, { signal: controller.signal }));
   } finally {
     clearTimeout(timer);
   }
@@ -860,6 +865,18 @@ const TRUSTED_MEDIA_DOMAINS = Object.freeze([
   '163.com',
   'qq.com',
   'qpic.cn',
+  'qlogo.cn',
+  'gtimg.cn',
+]);
+
+const TRUSTED_UPDATE_DOMAINS = Object.freeze([
+  'github.com',
+  'githubusercontent.com',
+  'release-assets.githubusercontent.com',
+  'objects.githubusercontent.com',
+  'gh.llkk.cc',
+  'ghfast.top',
+  'gh-proxy.com',
 ]);
 
 function trustedMediaUrl(value) {
@@ -872,6 +889,19 @@ function trustedMediaUrl(value) {
     domain => hostname === domain || hostname.endsWith('.' + domain)
   );
   if (!trusted) throw new Error('Untrusted media host');
+  return parsed.toString();
+}
+
+function trustedRemoteUrl(value) {
+  const parsed = new URL(String(value || ''));
+  if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) {
+    throw new Error('Invalid remote URL');
+  }
+  const hostname = parsed.hostname.toLowerCase();
+  const allowedDomains = TRUSTED_MEDIA_DOMAINS.concat(TRUSTED_UPDATE_DOMAINS);
+  if (!allowedDomains.some(domain => hostname === domain || hostname.endsWith('.' + domain))) {
+    throw new Error('Untrusted remote host');
+  }
   return parsed.toString();
 }
 async function fetchTextFromCandidates(candidates, timeoutMs) {
