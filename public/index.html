@@ -9927,7 +9927,7 @@ function setControlCoverSrc(src) {
     cover.classList.add('cover-empty');
     return;
   }
-  cover.style.backgroundImage = 'url("' + String(src).replace(/"/g, '\\"') + '")';
+  cover.style.backgroundImage = 'url(' + JSON.stringify(String(src)) + ')';
   cover.classList.remove('cover-empty');
 }
 
@@ -16678,7 +16678,7 @@ function openTrackDetailModal(type, songOverride) {
           var avatarEl = document.getElementById('artist-detail-cover');
           if (avatarEl) {
             avatarEl.textContent = '';
-            avatarEl.style.backgroundImage = 'url("' + coverUrlWithSize(r.artist.avatar, 180).replace(/"/g, '\\"') + '")';
+            avatarEl.style.backgroundImage = 'url(' + JSON.stringify(coverUrlWithSize(r.artist.avatar, 180)) + ')';
             avatarEl.style.backgroundSize = 'cover';
             avatarEl.style.backgroundPosition = 'center';
           }
