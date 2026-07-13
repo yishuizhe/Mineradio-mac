@@ -1,5 +1,24 @@
 const DEFAULT_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const FULL_STREAM_QUALITY_LIMIT_SEC = 7200;
+const TRUSTED_AUDIO_DOMAINS = Object.freeze(['music.126.net', 'music.163.com', '163.com', 'qq.com']);
+
+function trustedAudioUrl(value) {
+  const parsed = new URL(String(value || ''));
+  if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) {
+    throw new Error('Invalid audio URL');
+  }
+  const hostname = parsed.hostname.toLowerCase();
+  if (!TRUSTED_AUDIO_DOMAINS.some(domain => hostname === domain || hostname.endsWith('.' + domain))) {
+    throw new Error('Untrusted audio host');
+  }
+  return parsed.toString();
+}
+
+function fetchTrustedAudio(value, options) {
+  const url = trustedAudioUrl(value);
+  // The hostname is constrained to explicit NetEase/QQ domain boundaries above.
+  return fetch(url, options); // lgtm[js/request-forgery]
+}
 
 function clamp01(v) {
   return Math.max(0, Math.min(1, Number(v) || 0));
@@ -448,7 +467,7 @@ async function decodePodcastDjEnergyRange(audioUrl, opts) {
       'Referer': 'https://music.163.com/',
     };
     if (opts.range) headers.Range = opts.range;
-    const resp = await fetch(audioUrl, { headers });
+    const resp = await fetchTrustedAudio(audioUrl, { headers });
     if (!resp.ok && resp.status !== 206) throw new Error('Audio fetch failed: ' + resp.status);
     if (!resp.body) throw new Error('Audio response has no body');
     const reader = resp.body.getReader();
@@ -524,7 +543,7 @@ async function analyzePodcastDjRangeSamples(audioUrl, opts) {
 
   let contentLength = 0;
   try {
-    const head = await fetch(audioUrl, {
+    const head = await fetchTrustedAudio(audioUrl, {
       method: 'HEAD',
       headers: {
         'User-Agent': opts.userAgent || DEFAULT_UA,
@@ -818,7 +837,7 @@ async function analyzePodcastDjStreamFull(audioUrl, opts) {
   }
 
   try {
-    const resp = await fetch(audioUrl, {
+    const resp = await fetchTrustedAudio(audioUrl, {
       headers: {
         'User-Agent': opts.userAgent || DEFAULT_UA,
         'Referer': 'https://music.163.com/',

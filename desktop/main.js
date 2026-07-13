@@ -483,7 +483,7 @@ function neteaseCookieHasLogin(cookieText) {
 
 function isQQCookieDomain(domain) {
   const normalized = String(domain || '').replace(/^\./, '').toLowerCase();
-  return normalized === 'qq.com' || normalized.endsWith('.qq.com') || normalized.endsWith('qqmusic.qq.com');
+  return normalized === 'qq.com' || normalized.endsWith('.qq.com');
 }
 
 function isNeteaseCookieDomain(domain) {

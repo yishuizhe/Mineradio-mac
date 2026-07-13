@@ -853,6 +853,27 @@ async function fetchWithTimeout(url, opts, timeoutMs) {
     clearTimeout(timer);
   }
 }
+
+const TRUSTED_MEDIA_DOMAINS = Object.freeze([
+  'music.126.net',
+  'music.163.com',
+  '163.com',
+  'qq.com',
+  'qpic.cn',
+]);
+
+function trustedMediaUrl(value) {
+  const parsed = new URL(String(value || ''));
+  if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) {
+    throw new Error('Invalid media URL');
+  }
+  const hostname = parsed.hostname.toLowerCase();
+  const trusted = TRUSTED_MEDIA_DOMAINS.some(
+    domain => hostname === domain || hostname.endsWith('.' + domain)
+  );
+  if (!trusted) throw new Error('Untrusted media host');
+  return parsed.toString();
+}
 async function fetchTextFromCandidates(candidates, timeoutMs) {
   const list = Array.isArray(candidates) && candidates.length ? candidates : [];
   const failures = [];
@@ -2562,7 +2583,9 @@ function audioProxyHeadersFor(audioUrl, range) {
   const headers = { 'User-Agent': UA, Referer: 'https://music.163.com/' };
   try {
     const host = new URL(audioUrl).hostname.toLowerCase();
-    if (host.includes('qq.com') || host.includes('qpic.cn')) headers.Referer = 'https://y.qq.com/';
+    if (host === 'qq.com' || host.endsWith('.qq.com') || host === 'qpic.cn' || host.endsWith('.qpic.cn')) {
+      headers.Referer = 'https://y.qq.com/';
+    }
   } catch (e) {}
   if (range) headers.Range = range;
   return headers;
@@ -3004,15 +3027,12 @@ async function handleQQSongComments(id, mid, limit, offset) {
 }
 
 function decodeHtmlEntities(text) {
-  return String(text || '')
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
-    .replace(/&nbsp;/g, ' ');
+  const named = { quot: '"', apos: "'", lt: '<', gt: '>', amp: '&', nbsp: ' ' };
+  return String(text || '').replace(/&(?:#x([0-9a-f]+)|#(\d+)|(quot|apos|lt|gt|amp|nbsp));/gi, (entity, hex, dec, name) => {
+    if (hex) return String.fromCodePoint(parseInt(hex, 16));
+    if (dec) return String.fromCodePoint(parseInt(dec, 10));
+    return named[String(name || '').toLowerCase()] || entity;
+  });
 }
 
 function decodeQQLyricText(text) {
@@ -3955,12 +3975,8 @@ const server = http.createServer(async (req, res) => {
   // ---------- 播客 DJ 长音频后端离线锁拍 ----------
   if (pn === '/api/podcast/dj-beatmap') {
     try {
-      const audioUrl = url.searchParams.get('url');
+      const audioUrl = trustedMediaUrl(url.searchParams.get('url'));
       const durationSec = Math.max(0, Number(url.searchParams.get('duration') || 0) || 0);
-      if (!audioUrl || !/^https?:\/\//i.test(audioUrl)) {
-        sendJSON(res, { error: 'Invalid audio url' }, 400);
-        return;
-      }
       console.log('[PodcastDjBeatmap] start', Math.round(durationSec || 0) + 's');
       const started = Date.now();
       const introSec = Math.max(0, Number(url.searchParams.get('intro') || 0) || 0);
@@ -4365,12 +4381,7 @@ const server = http.createServer(async (req, res) => {
   // ---------- 封面代理 (带 CORS 头, 给 canvas 提取像素用) ----------
   if (pn === '/api/cover') {
     try {
-      const coverUrl = url.searchParams.get('url');
-      // URL 校验: 必须是 http(s) 开头, 否则直接 404 (不要让 fetch 抛错)
-      if (!coverUrl || !/^https?:\/\//i.test(coverUrl)) {
-        sendText(res, 400, 'Invalid cover url', appendCorsHeaders({}, req));
-        return;
-      }
+      const coverUrl = trustedMediaUrl(url.searchParams.get('url'));
       const resp = await fetchWithTimeout(coverUrl, { headers: { 'User-Agent': UA, 'Referer': 'https://music.163.com/' } }, 10000);
       const ct  = resp.headers.get('content-type') || 'image/jpeg';
       const cl  = resp.headers.get('content-length');
@@ -4433,12 +4444,7 @@ const server = http.createServer(async (req, res) => {
 
   if (pn === '/api/audio') {
     try {
-      const audioUrl = url.searchParams.get('url');
-      if (!audioUrl) { res.writeHead(400); res.end('Missing url'); return; }
-      if (!/^https?:\/\//i.test(audioUrl)) {
-        sendText(res, 400, 'Invalid audio url', appendCorsHeaders({}, req));
-        return;
-      }
+      const audioUrl = trustedMediaUrl(url.searchParams.get('url'));
       const range = req.headers.range || '';
       const hdr = audioProxyHeadersFor(audioUrl, range);
       const up = await fetchWithTimeout(audioUrl, { headers: hdr }, 12000);
